@@ -1,23 +1,25 @@
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import javax.net.ssl.*;
 
 public final class Server {
 	private final int serverPort;
 	private Map<String, byte[]> resourceMap;
 	private Map<String, String> redirectMap;
-	private ServerSocket socket;
+	//private ServerSocket socket;
 	private DataOutputStream toClientStream;
 	private DataInputStream fromClientStream;
+    private SSLServerSocketFactory sslserversocketfactory;
+    private SSLServerSocket sslserversocket; //=
+            //(SSLServerSocket) sslserversocketfactory.createServerSocket(9999);
 
 	public Server(int serverPort) {
 		this.serverPort = serverPort;
+        this.sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 	}
 
 	public void loadResources() throws IOException {
@@ -28,10 +30,10 @@ public final class Server {
 	/**
 	 * Creates a socket + binds to the desired server-side port #.
 	 *
-	 * @throws {@link IOException} if the port is already in use.
+	 * @throws {@link java.io.IOException} if the port is already in use.
 	 */
 	public void bind() throws IOException {
-		socket = new ServerSocket(serverPort);
+		sslserversocket = (SSLServerSocket) sslserversocketfactory.createServerSocket(serverPort);
 		System.out.println("Server bound and listening to port " + serverPort);
 	}
 
@@ -39,14 +41,14 @@ public final class Server {
 	 * Waits for a client to connect, and then sets up stream objects for communication
  	 * in both directions.
 	 *
-	 * @return The newly-created client {@link Socket} if the connection is successfully
+	 * @return The newly-created client {@link java.net.Socket} if the connection is successfully
 	 *     established, or {@code null} otherwise.
-	 * @throws {@link IOException} if the server fails to accept the connection.
+	 * @throws {@link java.io.IOException} if the server fails to accept the connection.
 	 */
-	public Socket acceptFromClient() throws IOException {
-		Socket clientSocket;
+	public SSLSocket acceptFromClient() throws IOException {
+		SSLSocket clientSocket;
 		try {
-			clientSocket = socket.accept();
+			clientSocket = (SSLSocket) sslserversocket.accept();
 		} catch (SecurityException e) {
 			System.out.println("The security manager intervened; your config is very wrong. " + e);
 			return null;
@@ -130,7 +132,7 @@ public final class Server {
 				.toString();
 
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 404 Not Found\r\n")
+				.append("HTTP/1.1 404 Not Found\r\n")
 				.append("Content-Type: text/html; charset=UTF-8\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Content-Length: %d\r\n", responseBody.length()));
@@ -146,7 +148,7 @@ public final class Server {
 
 	private void send403(HTTPRequest request, String errorDetail) throws IOException {
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 403 Forbidden\r\n")
+				.append("HTTP/1.1 403 Forbidden\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Context-Length: %d\r\n", errorDetail.length()));
 		if (request.getType() == HTTPRequest.Command.GET) {
@@ -157,7 +159,7 @@ public final class Server {
 
 	private void send200(HTTPRequest request, byte[] content) throws IOException {
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 200 OK\r\n")
+				.append("HTTP/1.1 200 OK\r\n")
 				.append("Content-Type: text/html; charset=utf-8\r\n")
 				.append("Server: project1\r\n")
 				.append("Connection: close\r\n")
@@ -179,27 +181,6 @@ public final class Server {
 		}
 
 		int serverPort = -1;
-
-        try {
-            //reference used: http://stilius.net/java/java_ssl.php
-            SSLServerSocketFactory sslserversocketfactory =
-                    (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-            SSLServerSocket sslserversocket =
-                    (SSLServerSocket) sslserversocketfactory.createServerSocket(9999);
-            SSLSocket sslsocket = (SSLSocket) sslserversocket.accept();
-
-            InputStream inputstream = sslsocket.getInputStream();
-            InputStreamReader inputstreamreader = new InputStreamReader(inputstream);
-            BufferedReader bufferedreader = new BufferedReader(inputstreamreader);
-
-            String string = null;
-            while ((string = bufferedreader.readLine()) != null) {
-                System.out.println(string);
-                System.out.flush();
-            }
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
 		try {
 			serverPort = Integer.parseInt(flags.get("--serverPort"));
 		} catch (NumberFormatException e) {
@@ -230,9 +211,5 @@ public final class Server {
 			System.out.println("Error communicating with client. aborting. Details: " + e);
 		}
 	}
-
-
-
-
 }
 
