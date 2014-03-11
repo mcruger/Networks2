@@ -25,7 +25,7 @@ final class HTTPRequest {
 		try {
 			this.command = Command.valueOf(bits[0]);
 		} catch (IllegalArgumentException e) {
-			System.out.println("Illegal HTTP op code received [" + bits[0] + "]");
+			System.out.println("Illegal HTTPS op code received [" + bits[0] + "]");
 			this.command = Command.UNK;
 		}
 		this.path = bits[1];
@@ -59,7 +59,7 @@ final class HTTPRequest {
 	@Override
 	public String toString() {
 		StringBuilder out = new StringBuilder();
-		out.append(String.format("HTTP request, version [%s]\n", version));
+		out.append(String.format("HTTPS request, version [%s]\n", version));
 		out.append(String.format("%s [%s]\n", command, path));
 		out.append("Headers:\n");
 		for (Map.Entry<String, String> header : headers.entrySet()) {

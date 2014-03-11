@@ -72,8 +72,9 @@ public final class Server {
 	public void handleRequest() throws IOException {
 		List<String> rawRequest = new ArrayList<String>();
 		String inputLine;
+        BufferedReader brdFromClientStream = new BufferedReader(new InputStreamReader(fromClientStream));
 		do {
-			inputLine = fromClientStream.readLine();
+			inputLine = brdFromClientStream.readLine();
 			//if (inputLine == null) {
 			//	System.out.println("inputLine was null!\n");
 		//		break;
@@ -112,7 +113,7 @@ public final class Server {
 				.toString();
 
 		StringBuilder response = new StringBuilder()
-				.append("HTTP/1.1 301 Moved Permanently\r\n")
+				.append("HTTPS/1.1 301 Moved Permanently\r\n")
 				.append(String.format("Location: %s\r\n", newUrl))
 				.append(String.format("Content-Type: text/html; charset=UTF-8\r\n"))
 				.append("Connection: close\r\n")
@@ -132,7 +133,7 @@ public final class Server {
 				.toString();
 
 		StringBuilder response = new StringBuilder()
-				.append("HTTP/1.1 404 Not Found\r\n")
+				.append("HTTPS/1.1 404 Not Found\r\n")
 				.append("Content-Type: text/html; charset=UTF-8\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Content-Length: %d\r\n", responseBody.length()));
@@ -148,7 +149,7 @@ public final class Server {
 
 	private void send403(HTTPRequest request, String errorDetail) throws IOException {
 		StringBuilder response = new StringBuilder()
-				.append("HTTP/1.1 403 Forbidden\r\n")
+				.append("HTTPS/1.1 403 Forbidden\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Context-Length: %d\r\n", errorDetail.length()));
 		if (request.getType() == HTTPRequest.Command.GET) {
@@ -159,7 +160,7 @@ public final class Server {
 
 	private void send200(HTTPRequest request, byte[] content) throws IOException {
 		StringBuilder response = new StringBuilder()
-				.append("HTTP/1.1 200 OK\r\n")
+				.append("HTTPS/1.1 200 OK\r\n")
 				.append("Content-Type: text/html; charset=utf-8\r\n")
 				.append("Server: project1\r\n")
 				.append("Connection: close\r\n")
