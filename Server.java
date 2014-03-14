@@ -119,7 +119,7 @@ public final class Server {
 		// See if this is supposed to be a redirect, first.
 		if (redirectMap.containsKey(request.getPath())) {
 			send301(request, redirectMap.get(request.getPath()));
-		} else if (!resourceMap.containsKey(request.getPath())) {
+		} else if (request.getPath().endsWith(".defs") || !resourceMap.containsKey(request.getPath())) {
 			send404(request);
 		} else {
 			byte[] content = resourceMap.get(request.getPath());
