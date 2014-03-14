@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import javax.net.ssl.*;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
 
 public final class Server {
 	private final int serverPort;
@@ -32,8 +34,32 @@ public final class Server {
 	 *
 	 * @throws {@link java.io.IOException} if the port is already in use.
 	 */
-	public void bind() throws IOException {
-		sslserversocket = (SSLServerSocket) sslserversocketfactory.createServerSocket(serverPort);
+	public void bind() throws Exception {
+
+        //refs
+        //http://www.java2s.com/Tutorial/Java/0490__Security/KeyStoreExample.htm
+        //http://www.java2s.com/Tutorial/Java/0490__Security/SSLContextandKeymanager.htm
+
+        SSLContext context;
+        KeyManagerFactory kmgmrfactory;
+        KeyStore kstore;
+        char[] storepass = "password".toCharArray();
+        char[] keypass = "password".toCharArray();
+        String storename = "server.jks";
+
+        context = SSLContext.getInstance("TLS");
+        kmgmrfactory = KeyManagerFactory.getInstance("SunX509");
+        FileInputStream fin = new FileInputStream(storename);
+        kstore = KeyStore.getInstance("JKS");
+        kstore.load(fin, storepass);
+
+        kmgmrfactory.init(kstore, keypass);
+
+        context.init(kmgmrfactory.getKeyManagers(), null, null);
+        SSLServerSocketFactory sslServerSocketFactory = context.getServerSocketFactory();
+
+        sslserversocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(serverPort);
+        //sslserversocket = (SSLServerSocket) sslserversocketfactory.createServerSocket(serverPort);
 		System.out.println("Server bound and listening to port " + serverPort);
 	}
 
@@ -174,12 +200,13 @@ public final class Server {
 		}
 	}
 
-	public static void main(String argv[]) {
+	public static void main(String argv[]) throws Exception{
 		Map<String, String> flags = Utils.parseCmdlineFlags(argv);
 		if (!flags.containsKey("--serverPort")) {
 			System.out.println("usage: Server --serverPort=12345");
 			System.exit(-1);
 		}
+
 
 		int serverPort = -1;
 		try {
