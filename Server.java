@@ -2,22 +2,19 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Map;
 import javax.net.ssl.*;
 import java.security.KeyStore;
-import java.security.cert.Certificate;
 
 public final class Server {
 	private final int serverPort;
 	private Map<String, byte[]> resourceMap;
 	private Map<String, String> redirectMap;
-	//private ServerSocket socket;
 	private DataOutputStream toClientStream;
 	private DataInputStream fromClientStream;
     private SSLServerSocketFactory sslserversocketfactory;
-    private SSLServerSocket sslserversocket; //=
-            //(SSLServerSocket) sslserversocketfactory.createServerSocket(9999);
+    private SSLServerSocket sslserversocket;
+    private boolean keepAlive = false;
 
 	public Server(int serverPort) {
 		this.serverPort = serverPort;
@@ -188,8 +185,8 @@ public final class Server {
 		StringBuilder response = new StringBuilder()
 				.append("HTTPS/1.1 200 OK\r\n")
 				.append("Content-Type: text/html; charset=utf-8\r\n")
-				.append("Server: project1\r\n")
-				.append("Connection: close\r\n")
+				.append("Server: project2\r\n")
+				.append(persistentConnection(request.askingForPersistent()))
 				.append(String.format("Content-Length: %d\r\n", content.length));
 		toClientStream.writeBytes(response.toString());
 		if (request.getType() == HTTPRequest.Command.GET) {
@@ -199,6 +196,13 @@ public final class Server {
 				outByteStream.writeTo(toClientStream);
 		}
 	}
+
+    public String persistentConnection(boolean persist){
+        if(persist){
+            keepAlive = true;
+        }
+        return "Connection: " + (persist ? "keep-alive" : "close") + "\r\n";
+    }
 
 	public static void main(String argv[]) throws Exception{
 		Map<String, String> flags = Utils.parseCmdlineFlags(argv);
@@ -228,11 +232,15 @@ public final class Server {
 					} catch (IOException e) {
 						System.out.println("IO exception handling request, continuing.");
 					}
-					try {
-						clientSocket.close();
-					} catch (IOException e) {
-						System.out.println("it's ok; the server already closed the connection.");
-					}
+					if (!server.keepAlive){
+                        try {
+                            clientSocket.close();
+                        } catch (IOException e) {
+                            System.out.println("it's ok; the server already closed the connection.");
+                        }
+                    } else{
+                        server.keepAlive = false;
+                    }
 				}
 			}
 		} catch (IOException e) {

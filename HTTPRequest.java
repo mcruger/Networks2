@@ -44,8 +44,9 @@ final class HTTPRequest {
 				String key = headerLine.substring(0, splitIdx);
 				String value = headerLine.substring(splitIdx + 2, headerLine.length());
 				headers.put(key, value);
-			}	
-		}		
+			}
+
+		}
 	}
 
 	public Command getType() {
@@ -55,6 +56,11 @@ final class HTTPRequest {
 	public String getPath() {
 		return path;
 	}
+
+    public boolean askingForPersistent(){
+        System.out.println("Connection Header: " + this.headers.get("Connection"));
+        return this.headers.get("Connection") == null || this.headers.get("Connection").equals("Keep-Alive");
+    }
 
 	@Override
 	public String toString() {
