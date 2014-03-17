@@ -45,10 +45,10 @@ public final class Server {
 	 *     established, or {@code null} otherwise.
 	 * @throws {@link IOException} if the server fails to accept the connection.
 	 */
-	public Socket acceptFromClient() throws IOException {
-		Socket clientSocket;
+	public SSLSocket acceptFromClient() throws IOException {
+		SSLSocket clientSocket;
 		try {
-			clientSocket = serverSocket.accept();
+			clientSocket = (SSLSocket) serverSocket.accept();
 		} catch (SecurityException e) {
 			System.out.println("The security manager intervened; your config is very wrong. " + e);
 			return null;
