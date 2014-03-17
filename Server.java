@@ -2,23 +2,23 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import javax.net.ssl.*;
-import java.security.KeyStore;
 
 public final class Server {
 	private final int serverPort;
 	private Map<String, byte[]> resourceMap;
 	private Map<String, String> redirectMap;
+    //private SSLSocket clientSocket;
+    private SSLServerSocket serverSocket;
+    private SSLServerSocketFactory sslSocketFactory;
 	private DataOutputStream toClientStream;
 	private DataInputStream fromClientStream;
-    private SSLServerSocketFactory sslserversocketfactory;
-    private SSLServerSocket sslserversocket;
-    private boolean keepAlive = false;
 
 	public Server(int serverPort) {
 		this.serverPort = serverPort;
-        this.sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+        this.sslSocketFactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 	}
 
 	public void loadResources() throws IOException {
@@ -29,34 +29,11 @@ public final class Server {
 	/**
 	 * Creates a socket + binds to the desired server-side port #.
 	 *
-	 * @throws {@link java.io.IOException} if the port is already in use.
+	 * @throws {@link IOException} if the port is already in use.
 	 */
-	public void bind() throws Exception {
+	public void bind() throws IOException {
 
-        //refs
-        //http://www.java2s.com/Tutorial/Java/0490__Security/KeyStoreExample.htm
-        //http://www.java2s.com/Tutorial/Java/0490__Security/SSLContextandKeymanager.htm
-
-        SSLContext context;
-        KeyManagerFactory kmgmrfactory;
-        KeyStore kstore;
-        char[] storepass = "password".toCharArray();
-        char[] keypass = "password".toCharArray();
-        String storename = "server.jks";
-
-        context = SSLContext.getInstance("TLS");
-        kmgmrfactory = KeyManagerFactory.getInstance("SunX509");
-        FileInputStream fin = new FileInputStream(storename);
-        kstore = KeyStore.getInstance("JKS");
-        kstore.load(fin, storepass);
-
-        kmgmrfactory.init(kstore, keypass);
-
-        context.init(kmgmrfactory.getKeyManagers(), null, null);
-        SSLServerSocketFactory sslServerSocketFactory = context.getServerSocketFactory();
-
-        sslserversocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(serverPort);
-        //sslserversocket = (SSLServerSocket) sslserversocketfactory.createServerSocket(serverPort);
+        serverSocket = (SSLServerSocket) sslSocketFactory.createServerSocket(9999);
 		System.out.println("Server bound and listening to port " + serverPort);
 	}
 
@@ -64,14 +41,14 @@ public final class Server {
 	 * Waits for a client to connect, and then sets up stream objects for communication
  	 * in both directions.
 	 *
-	 * @return The newly-created client {@link java.net.Socket} if the connection is successfully
+	 * @return The newly-created client {@link Socket} if the connection is successfully
 	 *     established, or {@code null} otherwise.
-	 * @throws {@link java.io.IOException} if the server fails to accept the connection.
+	 * @throws {@link IOException} if the server fails to accept the connection.
 	 */
-	public SSLSocket acceptFromClient() throws IOException {
-		SSLSocket clientSocket;
+	public Socket acceptFromClient() throws IOException {
+		Socket clientSocket;
 		try {
-			clientSocket = (SSLSocket) sslserversocket.accept();
+			clientSocket = serverSocket.accept();
 		} catch (SecurityException e) {
 			System.out.println("The security manager intervened; your config is very wrong. " + e);
 			return null;
@@ -95,9 +72,8 @@ public final class Server {
 	public void handleRequest() throws IOException {
 		List<String> rawRequest = new ArrayList<String>();
 		String inputLine;
-        BufferedReader brdFromClientStream = new BufferedReader(new InputStreamReader(fromClientStream));
 		do {
-			inputLine = brdFromClientStream.readLine();
+			inputLine = fromClientStream.readLine();
 			//if (inputLine == null) {
 			//	System.out.println("inputLine was null!\n");
 		//		break;
@@ -119,7 +95,7 @@ public final class Server {
 		// See if this is supposed to be a redirect, first.
 		if (redirectMap.containsKey(request.getPath())) {
 			send301(request, redirectMap.get(request.getPath()));
-		} else if (request.getPath().endsWith(".defs") || !resourceMap.containsKey(request.getPath())) {
+		} else if (!resourceMap.containsKey(request.getPath())) {
 			send404(request);
 		} else {
 			byte[] content = resourceMap.get(request.getPath());
@@ -136,7 +112,7 @@ public final class Server {
 				.toString();
 
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 301 Moved Permanently\r\n")
+				.append("HTTP/1.1 301 Moved Permanently\r\n")
 				.append(String.format("Location: %s\r\n", newUrl))
 				.append(String.format("Content-Type: text/html; charset=UTF-8\r\n"))
 				.append("Connection: close\r\n")
@@ -156,7 +132,7 @@ public final class Server {
 				.toString();
 
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 404 Not Found\r\n")
+				.append("HTTP/1.1 404 Not Found\r\n")
 				.append("Content-Type: text/html; charset=UTF-8\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Content-Length: %d\r\n", responseBody.length()));
@@ -172,7 +148,7 @@ public final class Server {
 
 	private void send403(HTTPRequest request, String errorDetail) throws IOException {
 		StringBuilder response = new StringBuilder()
-				.append("HTTPS/1.1 403 Forbidden\r\n")
+				.append("HTTP/1.1 403 Forbidden\r\n")
 				.append("Connection: close\r\n")
 				.append(String.format("Context-Length: %d\r\n", errorDetail.length()));
 		if (request.getType() == HTTPRequest.Command.GET) {
@@ -185,8 +161,8 @@ public final class Server {
 		StringBuilder response = new StringBuilder()
 				.append("HTTPS/1.1 200 OK\r\n")
 				.append("Content-Type: text/html; charset=utf-8\r\n")
-				.append("Server: project2\r\n")
-				.append(persistentConnection(request.askingForPersistent()))
+				.append("Server: project1\r\n")
+				.append("Connection: close\r\n")
 				.append(String.format("Content-Length: %d\r\n", content.length));
 		toClientStream.writeBytes(response.toString());
 		if (request.getType() == HTTPRequest.Command.GET) {
@@ -197,20 +173,12 @@ public final class Server {
 		}
 	}
 
-    public String persistentConnection(boolean persist){
-        if(persist){
-            keepAlive = true;
-        }
-        return "Connection: " + (persist ? "keep-alive" : "close") + "\r\n";
-    }
-
-	public static void main(String argv[]) throws Exception{
+	public static void main(String argv[]) {
 		Map<String, String> flags = Utils.parseCmdlineFlags(argv);
 		if (!flags.containsKey("--serverPort")) {
 			System.out.println("usage: Server --serverPort=12345");
 			System.exit(-1);
 		}
-
 
 		int serverPort = -1;
 		try {
@@ -232,20 +200,18 @@ public final class Server {
 					} catch (IOException e) {
 						System.out.println("IO exception handling request, continuing.");
 					}
-					if (!server.keepAlive){
-                        try {
-                            clientSocket.close();
-                        } catch (IOException e) {
-                            System.out.println("it's ok; the server already closed the connection.");
-                        }
-                    } else{
-                        server.keepAlive = false;
-                    }
+					try {
+						clientSocket.close();
+					} catch (IOException e) {
+						System.out.println("it's ok; the server already closed the connection.");
+					}
 				}
 			}
 		} catch (IOException e) {
 			System.out.println("Error communicating with client. aborting. Details: " + e);
+            e.printStackTrace();
 		}
+
 	}
 }
 
