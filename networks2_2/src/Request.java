@@ -65,7 +65,7 @@ final class Request {
 
     public boolean askingForPersistent(){
         System.out.println("Connection Header: " + this.headers.get("Connection"));
-        return this.headers.get("Connection") != null && this.headers.get("Connection").equals("Keep-Alive");
+        return this.headers.get("Connection:") != null && this.headers.get("Connection:").equals("Keep-Alive");
     }
 
 	@Override

@@ -226,8 +226,10 @@ public class ServerThread extends Thread{
                 e.printStackTrace();
             }
 
+            Socket holdSocket = null;
             while(true) {
-                Socket clientSocket = this.acceptFromClient();
+                Socket clientSocket = holdSocket == null ? this.acceptFromClient() : holdSocket;
+                holdSocket = null;
                 if (clientSocket != null && clientSocket.isConnected()) {
                     try {
                         this.handleRequest();
@@ -237,10 +239,12 @@ public class ServerThread extends Thread{
                     if (!this.keepAlive){
                         try {
                             clientSocket.close();
+                            System.out.println("Closing Connection");
                         } catch (IOException e) {
                             System.out.println("it's ok; the server already closed the connection.");
                         }
                     } else{
+                        holdSocket = clientSocket;
                         this.keepAlive = false;
                     }
                 }
