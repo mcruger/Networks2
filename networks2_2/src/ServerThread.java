@@ -61,9 +61,10 @@ public class ServerThread extends Thread{
             SSLServerSocketFactory sslServerSocketFactory = context.getServerSocketFactory();
 
             serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(serverPort);
-            System.out.println("Server bound and listening to port " + serverPort);
+            System.out.println("SSL Server bound and listening to port " + serverPort);
         } else {
             serverSocket = new ServerSocket(serverPort);
+            System.out.println("Server bound and listening to port " + serverPort);
         }
     }
 
@@ -194,7 +195,7 @@ public class ServerThread extends Thread{
                 .append(request.requestType() + "/1.1 200 OK\r\n")
                 .append("Content-Type: text/html; charset=utf-8\r\n")
                 .append("Server: project2\r\n")
-                //.append(persistentConnection(request.askingForPersistent()))
+                .append(persistentConnection(request.askingForPersistent()))
                 .append(String.format("Content-Length: %d\r\n", content.length));
         toClientStream.writeBytes(response.toString());
         if (request.getType() == Request.Command.GET) {
@@ -205,6 +206,13 @@ public class ServerThread extends Thread{
         }
     }
 
+
+    public String persistentConnection(boolean persist){
+        if(persist){
+            keepAlive = true;
+        }
+        return "Connection: " + (persist ? "keep-alive" : "close") + "\r\n";
+    }
 
     public void run() {
 
